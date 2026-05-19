@@ -1,0 +1,174 @@
+{
+  "entities": {
+    "Group": {
+      "title": "Group",
+      "description": "A group of users sharing information.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "members": { "type": "array" },
+        "ownerId": { "type": "string" }
+      }
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "A pending invitation to join a group.",
+      "type": "object",
+      "properties": {
+        "groupId": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "revoked"] },
+        "invitedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Client": {
+      "title": "Client",
+      "description": "A client information.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "groupId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "An invoice document.",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "sent", "paid", "cancelled"] },
+        "date": { "type": "string", "format": "date" },
+        "dueDate": { "type": "string", "format": "date" },
+        "items": { "type": "array" },
+        "currency": { "type": "string" },
+        "groupId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "An expense record.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "currency": { "type": "string" },
+        "note": { "type": "string" },
+        "groupId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Income": {
+      "title": "Income",
+      "description": "An income record.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "currency": { "type": "string" },
+        "note": { "type": "string" },
+        "groupId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Deal": {
+      "title": "Deal",
+      "description": "A pipeline deal.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "stage": { "type": "string" },
+        "clientName": { "type": "string" },
+        "groupId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Document": {
+      "title": "Document",
+      "description": "A CRM document link or upload.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "category": { "type": "string" },
+        "groupId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ActivityLog": {
+      "title": "Activity Log",
+      "description": "A log of activity within a group.",
+      "type": "object",
+      "properties": {
+        "groupId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityId": { "type": "string" },
+        "entityName": { "type": "string" },
+        "oldValue": { "type": "object" },
+        "newValue": { "type": "object" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/groups/{groupId}": {
+      "schema": "Group",
+      "description": "Collection of groups."
+    },
+    "/groups/{groupId}/invitations/{inviteId}": {
+      "schema": "Invitation",
+      "description": "Pending invitations for a group."
+    },
+    "/clients/{clientId}": {
+      "schema": "Client",
+      "description": "Collection of clients."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Collection of invoices."
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Collection of expenses."
+    },
+    "/incomes/{incomeId}": {
+      "schema": "Income",
+      "description": "Collection of incomes."
+    },
+    "/activities/{activityId}": {
+      "schema": "ActivityLog",
+      "description": "Collection of activity logs."
+    },
+    "/deals/{dealId}": {
+      "schema": "Deal",
+      "description": "Collection of deals in the pipeline."
+    },
+    "/documents/{documentId}": {
+      "schema": "Document",
+      "description": "Collection of CRM documents."
+    }
+  }
+}
