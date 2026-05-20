@@ -788,7 +788,7 @@ function InvoiceRow({ id, name, amount, status, statusColor, dotColor, iconColor
     return (
       <div className={`p-4 rounded-3xl transition-all relative group overflow-hidden border ${isSelected ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30' : 'bg-white dark:bg-[#141417] border-zinc-200 dark:border-white/5 hover:border-indigo-300 dark:hover:border-indigo-500/30'}`}>
         <div 
-          onClick={() => isSelectionMode ? (onToggle && onToggle()) : window.location.href = `/invoices/${dbId}`}
+          onClick={() => isSelectionMode ? (onToggle && onToggle()) : window.location.href = `/invoices/view?id=${dbId}`}
           className="cursor-pointer space-y-3"
         >
           <div className="flex justify-between items-start">
@@ -877,7 +877,7 @@ function InvoiceRow({ id, name, amount, status, statusColor, dotColor, iconColor
   return (
     <div className="relative group overflow-hidden">
       <div 
-        onClick={() => isSelectionMode ? (onToggle && onToggle()) : window.location.href = `/invoices/${dbId}`}
+        onClick={() => isSelectionMode ? (onToggle && onToggle()) : window.location.href = `/invoices/view?id=${dbId}`}
         className={`flex items-center justify-between p-3 rounded-[14px] transition-colors cursor-pointer ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-500/5' : 'hover:bg-zinc-200 dark:hover:bg-white/5'}`}
       >
         {content}
@@ -886,7 +886,7 @@ function InvoiceRow({ id, name, amount, status, statusColor, dotColor, iconColor
       {!isSelectionMode && (
         <div className="absolute right-0 top-0 bottom-0 flex items-center translate-x-full group-hover:translate-x-0 transition-transform z-20">
           <Link 
-            href={`/invoices/${dbId}`}
+            href={`/invoices/view?id=${dbId}`}
             className="h-full px-4 bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 flex items-center justify-center hover:bg-zinc-200 dark:hover:bg-white/20"
             title="View"
           >

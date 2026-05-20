@@ -2,8 +2,8 @@
 
 import { ArrowLeft, FileText, Edit2, Check, ArrowUpDown, ReceiptText, Wallet, Calendar, User, Eye, Trash2, Printer } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -11,9 +11,9 @@ import { useCurrency } from '@/components/CurrencyProvider';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'react-hot-toast';
 
-export default function InvoiceDetailsPage() {
-  const params = useParams();
-  const id = params.id as string;
+function InvoiceDetailsContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id') as string;
   const router = useRouter();
   const { t } = useLanguage();
   const { formatAmount } = useCurrency();
@@ -216,10 +216,22 @@ export default function InvoiceDetailsPage() {
           <button 
             className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all"
           >
-            < Eye size={18} /> {t('share')}
+            <Eye size={18} /> {t('share')}
           </button>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function InvoiceDetailsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#09090B]">
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <InvoiceDetailsContent />
+    </Suspense>
   );
 }

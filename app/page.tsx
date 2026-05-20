@@ -578,7 +578,7 @@ function InvoiceRow({ id, name, amount, status, statusColor, dotColor, iconColor
       whileHover={{ scale: 0.995 }}
       whileTap={{ scale: 0.98 }}
     >
-      <Link href={`/invoices/${dbId}`} className="flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-white/[0.03] rounded-[24px] transition-all group">
+      <Link href={`/invoices/view?id=${dbId}`} className="flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-white/[0.03] rounded-[24px] transition-all group">
         <div className="flex items-center gap-4 relative">
           <div className={`w-12 h-12 flex items-center justify-center rounded-[16px] bg-slate-50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 group-hover:bg-indigo-500/10 group-hover:border-indigo-500/20 transition-all duration-300`}>
              <FileText size={20} className={`${iconColor} transition-transform duration-300 group-hover:scale-110`} />
