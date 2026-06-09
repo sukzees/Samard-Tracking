@@ -11,6 +11,8 @@ export interface Group {
   name: string;
   members: string[];
   ownerId: string;
+  startingBalance?: number;
+  startingBalanceCurrency?: string;
 }
 
 export interface Invitation {
@@ -31,6 +33,7 @@ interface GroupContextType {
   createGroup: (name: string) => Promise<string | null>;
   joinGroup: (groupId: string) => Promise<boolean>;
   updateGroupName: (groupId: string, newName: string) => Promise<boolean>;
+  updateGroupStartingBalance: (groupId: string, balance: number, currency: string) => Promise<boolean>;
   deleteGroup: (groupId: string) => Promise<boolean>;
   removeMember: (groupId: string, memberId: string) => Promise<boolean>;
   inviteMember: (groupId: string, email: string) => Promise<boolean>;
@@ -50,6 +53,7 @@ const GroupContext = createContext<GroupContextType>({
   createGroup: async () => null,
   joinGroup: async () => false,
   updateGroupName: async () => false,
+  updateGroupStartingBalance: async () => false,
   deleteGroup: async () => false,
   removeMember: async () => false,
   inviteMember: async () => false,
@@ -196,6 +200,26 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
       await setDoc(doc(db, 'groups', groupId), {
         ...data,
         name: newName,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, `groups/${groupId}`);
+      return false;
+    }
+  };
+
+  const updateGroupStartingBalance = async (groupId: string, balance: number, currency: string) => {
+    if (!user) return false;
+    try {
+      const group = groups.find(g => g.id === groupId);
+      if (!group) return false;
+      
+      const { id, ...data } = group;
+      await setDoc(doc(db, 'groups', groupId), {
+        ...data,
+        startingBalance: balance,
+        startingBalanceCurrency: currency,
         updatedAt: serverTimestamp()
       });
       return true;
@@ -357,6 +381,7 @@ export function GroupProvider({ children }: { children: React.ReactNode }) {
       createGroup, 
       joinGroup,
       updateGroupName,
+      updateGroupStartingBalance,
       deleteGroup,
       removeMember,
       inviteMember,

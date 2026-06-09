@@ -2,7 +2,7 @@
 
 import { ArrowLeft, History, Clock, FileText, ReceiptText, Wallet, User, Plus, Edit2, Trash2, ShieldAlert, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -44,6 +44,23 @@ export default function HistoryPage() {
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [selectedUser, setSelectedUser] = useState('');
+  const [selectedType, setSelectedType] = useState('');
+  const [selectedAction, setSelectedAction] = useState('');
+
+  const uniqueUsers = useMemo(() => {
+    return Array.from(new Set(activities.map(a => a.userName).filter(Boolean)));
+  }, [activities]);
+
+  const filteredActivities = useMemo(() => {
+    return activities.filter(act => {
+      const matchesUser = !selectedUser || act.userName === selectedUser;
+      const matchesType = !selectedType || act.entityType === selectedType;
+      const matchesAction = !selectedAction || act.action === selectedAction;
+      return matchesUser && matchesType && matchesAction;
+    });
+  }, [activities, selectedUser, selectedType, selectedAction]);
 
   useEffect(() => {
     if (user) {
@@ -253,6 +270,116 @@ export default function HistoryPage() {
       </header>
 
       <div className="p-5 space-y-6 max-w-4xl mx-auto">
+        {/* Smart Filter Header & Options */}
+        {!loading && activities.length > 0 && (
+          <div className="bg-white dark:bg-[#0C0C0E] border border-zinc-200 dark:border-white/5 p-5 rounded-[28px] shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-indigo-500 animate-pulse" />
+              <h3 className="text-xs font-black uppercase text-zinc-900 dark:text-white tracking-widest">
+                {t('smartFilter') || 'Smart Filter'}
+              </h3>
+              {(selectedUser || selectedType || selectedAction) && (
+                <button
+                  onClick={() => {
+                    setSelectedUser('');
+                    setSelectedType('');
+                    setSelectedAction('');
+                  }}
+                  className="ml-auto text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:underline"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {/* Filter by Entity Type */}
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block">Entity Type</span>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: '', label: 'All' },
+                    { value: 'invoice', label: t('invoice') || 'Invoice' },
+                    { value: 'expense', label: t('expense') || 'Expense' },
+                    { value: 'income', label: t('income') || 'Income' },
+                    { value: 'client', label: t("clients") || 'Client' }
+                  ].map((ent) => (
+                    <button
+                      key={ent.value}
+                      onClick={() => setSelectedType(ent.value)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold tracking-tight transition-all border ${
+                        selectedType === ent.value
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/20'
+                          : 'bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10'
+                      }`}
+                    >
+                      {ent.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter by User */}
+              {uniqueUsers.length > 1 && (
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block">Performed By</span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedUser('')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold tracking-tight transition-all border ${
+                        selectedUser === ''
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/20'
+                          : 'bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10'
+                      }`}
+                    >
+                      Everyone
+                    </button>
+                    {uniqueUsers.map((userN) => (
+                      <button
+                        key={userN}
+                        onClick={() => setSelectedUser(userN)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold tracking-tight transition-all border ${
+                          selectedUser === userN
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10'
+                        }`}
+                      >
+                        {userN}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Filter by Action */}
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block">Action</span>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: '', label: 'All' },
+                    { value: 'create', label: t('created') || 'Create' },
+                    { value: 'update', label: t('updated') || 'Update' },
+                    { value: 'delete', label: t('deleted') || 'Delete' },
+                    { value: 'status_change', label: t('statusChanged') || 'Status Change' }
+                  ].map((actn) => (
+                    <button
+                      key={actn.value}
+                      onClick={() => setSelectedAction(actn.value)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold tracking-tight transition-all border ${
+                        selectedAction === actn.value
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-zinc-50 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10'
+                      }`}
+                    >
+                      {actn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
              <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -268,6 +395,12 @@ export default function HistoryPage() {
               Changes you make to your invoices, expenses, and clients will appear here.
             </p>
           </div>
+        ) : filteredActivities.length === 0 ? (
+          <div className="bg-white dark:bg-[#0C0C0E] py-16 px-10 rounded-[32px] border border-zinc-200 dark:border-white/5 text-center shadow-sm">
+            <p className="text-zinc-500 text-sm font-semibold">
+              No recent activity matches your selected filters. Try clearing them to see all.
+            </p>
+          </div>
         ) : (
           <motion.div 
             variants={containerVariants}
@@ -275,7 +408,7 @@ export default function HistoryPage() {
             animate="visible"
             className="space-y-4"
           >
-            {activities.map((activity) => (
+            {filteredActivities.map((activity) => (
               <motion.div 
                 key={activity.id} 
                 variants={itemVariants}

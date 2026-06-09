@@ -8,6 +8,8 @@ import { useLanguage } from '@/components/LanguageProvider';
 import { useCurrency, Currency, ExchangeRates } from '@/components/CurrencyProvider';
 import { useEffect, useState } from 'react';
 import WorkspaceManager from '@/components/WorkspaceManager';
+import { useGroup } from '@/components/GroupProvider';
+import { toast } from 'react-hot-toast';
 import { Language } from '@/lib/translations';
 import { motion } from 'motion/react';
 import Dropdown from '@/components/Dropdown';
@@ -41,6 +43,37 @@ export default function SettingsPage() {
   const { language, setLanguage, t } = useLanguage();
   const { currency, setCurrency, rates, setRates } = useCurrency();
   const [mounted, setMounted] = useState(false);
+
+  const { activeGroup, updateGroupStartingBalance } = useGroup();
+  const [startingBalance, setStartingBalance] = useState('');
+  const [startingCurrency, setStartingCurrency] = useState<Currency>(currency || 'USD');
+  const [savingBalance, setSavingBalance] = useState(false);
+
+  useEffect(() => {
+    if (activeGroup) {
+      setStartingBalance(activeGroup.startingBalance?.toString() || '');
+      setStartingCurrency((activeGroup.startingBalanceCurrency || currency || 'USD') as Currency);
+    }
+  }, [activeGroup, currency]);
+
+  const handleSaveStartingBalance = async () => {
+    if (!activeGroup) return;
+    setSavingBalance(true);
+    try {
+      const balanceValue = parseFloat(startingBalance) || 0;
+      const success = await updateGroupStartingBalance(activeGroup.id, balanceValue, startingCurrency);
+      if (success) {
+        toast.success(t('startingBalanceSaved' as any) || 'Starting balance saved!');
+      } else {
+        toast.error('Failed to save starting balance');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('An error occurred');
+    } finally {
+      setSavingBalance(false);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -138,6 +171,57 @@ export default function SettingsPage() {
              <WorkspaceManager />
           </div>
         </motion.div>
+
+        {/* Workspace Starting Balance Section */}
+        {activeGroup && (
+          <motion.div variants={itemVariants} className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
+               <div className="w-2 h-2 rounded-full bg-cyan-500"></div>
+               <h2 className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.2em]">{t('startingBalance') || 'Starting Balance'}</h2>
+            </div>
+            
+            <div className="bg-white dark:bg-[#0C0C0E] rounded-[32px] border border-zinc-200 dark:border-white/5 overflow-hidden shadow-sm p-6 space-y-4 relative">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-500"></div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-semibold">
+                Set an initial balance for the active workspace (<span className="text-zinc-700 dark:text-zinc-200 font-bold">{activeGroup.name}</span>). This starting balance amount will be calculated into your total profit and income on the main dashboard.
+              </p>
+              
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Starting Balance Amount</label>
+                  <input
+                    type="number"
+                    value={startingBalance}
+                    onChange={(e) => setStartingBalance(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-black/5 dark:bg-black/20 border border-zinc-300 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors font-bold"
+                  />
+                </div>
+                <div className="w-[124px] relative z-25">
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Currency</label>
+                  <Dropdown
+                    value={startingCurrency}
+                    onChange={(val) => setStartingCurrency(val as Currency)}
+                    options={[
+                      { label: 'USD ($)', value: 'USD' },
+                      { label: 'LAK (₭)', value: 'LAK' },
+                      { label: 'THB (฿)', value: 'THB' },
+                    ]}
+                    buttonClassName="w-full bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveStartingBalance}
+                disabled={savingBalance}
+                className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-colors flex justify-center items-center shadow-lg shadow-cyan-500/10 cursor-pointer"
+              >
+                {savingBalance ? t('saving') : t('save')}
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Preferences Section */}
         <motion.div variants={itemVariants} className="space-y-4">

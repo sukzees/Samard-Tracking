@@ -3,7 +3,7 @@
 import { ArrowLeft, ReceiptText, Plus, Search, Trash2, Edit2, Eye, ArrowUpDown, Check, CheckSquare, LayoutGrid, List, History, Sparkles, Filter, Download } from 'lucide-react';
 import { getDownloadUrl } from '@/lib/utils';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { collection, query, where, getDocs, orderBy, deleteDoc, doc, setDoc, serverTimestamp, getDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { logActivity, ActivityAction, EntityType } from '@/lib/activity';
@@ -56,6 +56,16 @@ export default function ExpensesList() {
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
   const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [currencyFilter, setCurrencyFilter] = useState('');
+
+  const uniqueCategories = useMemo(() => {
+    return Array.from(new Set(expenses.map(e => e.category).filter(Boolean)));
+  }, [expenses]);
+
+  const uniqueCurrencies = useMemo(() => {
+    return Array.from(new Set(expenses.map(e => e.currency).filter(Boolean)));
+  }, [expenses]);
   
   useEffect(() => {
     const savedViewMode = safeStorage.getItem('expenses_view_mode') as 'list' | 'grid';
@@ -180,7 +190,10 @@ export default function ExpensesList() {
     const queryStr = searchQuery.toLowerCase();
     const name = (exp.name || '').toLowerCase();
     const category = (exp.category || '').toLowerCase();
-    return name.includes(queryStr) || category.includes(queryStr);
+    const matchesSearch = name.includes(queryStr) || category.includes(queryStr);
+    const matchesCategory = !categoryFilter || exp.category === categoryFilter;
+    const matchesCurrency = !currencyFilter || exp.currency === currencyFilter;
+    return matchesSearch && matchesCategory && matchesCurrency;
   }).sort((a, b) => {
     let comparison = 0;
     if (sortBy === 'date') {
@@ -300,12 +313,50 @@ export default function ExpensesList() {
                   <motion.div 
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className="absolute right-0 top-[calc(100%+12px)] w-56 bg-white dark:bg-[#1C1C21] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-50 overflow-hidden py-2"
+                    className="absolute right-0 top-[calc(100%+12px)] w-60 max-h-[70vh] overflow-y-auto bg-white dark:bg-[#1C1C21] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-50 py-2"
                   >
                     <div className="px-4 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 dark:border-white/5 mb-2">{t('sort' as any) || "Sort by"}</div>
                     <SortOption label={t('date')} field="date" currentSortBy={sortBy} currentOrder={sortOrder} onClick={() => handleSort('date')} />
                     <SortOption label={t('amount')} field="amount" currentSortBy={sortBy} currentOrder={sortOrder} onClick={() => handleSort('amount')} />
                     <SortOption label={t('description')} field="name" currentSortBy={sortBy} currentOrder={sortOrder} onClick={() => handleSort('name')} />
+
+                    <div className="px-4 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-t border-b border-zinc-100 dark:border-white/5 mt-2 mb-2">{t('filterByCategory')}</div>
+                    <button 
+                      onClick={() => { setCategoryFilter(''); setShowSortMenu(false); }}
+                      className={`w-full text-left px-4 py-2 text-xs flex justify-between hover:bg-zinc-200 dark:hover:bg-white/5 ${!categoryFilter ? 'text-indigo-400 font-medium' : 'text-zinc-600 dark:text-zinc-400'}`}
+                    >
+                      {t('allCategories' as any) || 'All Categories'}
+                      {!categoryFilter && <Check size={12} />}
+                    </button>
+                    {uniqueCategories.map(cat => (
+                      <button 
+                        key={cat}
+                        onClick={() => { setCategoryFilter(cat); setShowSortMenu(false); }}
+                        className={`w-full text-left px-4 py-2 text-xs flex justify-between hover:bg-zinc-200 dark:hover:bg-white/5 ${categoryFilter === cat ? 'text-indigo-400 font-medium' : 'text-zinc-600 dark:text-zinc-400'}`}
+                      >
+                        {cat}
+                        {categoryFilter === cat && <Check size={12} />}
+                      </button>
+                    ))}
+
+                    <div className="px-4 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-widest border-t border-b border-zinc-100 dark:border-white/5 mt-2 mb-2">{t('filterByCurrency')}</div>
+                    <button 
+                      onClick={() => { setCurrencyFilter(''); setShowSortMenu(false); }}
+                      className={`w-full text-left px-4 py-2 text-xs flex justify-between hover:bg-zinc-200 dark:hover:bg-white/5 ${!currencyFilter ? 'text-indigo-400 font-medium' : 'text-zinc-600 dark:text-zinc-400'}`}
+                    >
+                      {t('allCurrencies')}
+                      {!currencyFilter && <Check size={12} />}
+                    </button>
+                    {uniqueCurrencies.map(curr => (
+                      <button 
+                        key={curr}
+                        onClick={() => { setCurrencyFilter(curr); setShowSortMenu(false); }}
+                        className={`w-full text-left px-4 py-2 text-xs flex justify-between hover:bg-zinc-200 dark:hover:bg-white/5 ${currencyFilter === curr ? 'text-indigo-400 font-medium' : 'text-zinc-600 dark:text-zinc-400'}`}
+                      >
+                        {curr}
+                        {currencyFilter === curr && <Check size={12} />}
+                      </button>
+                    ))}
                   </motion.div>
                 </>
               )}
@@ -504,6 +555,22 @@ function ExpenseDetails({ id, onClose, onEdit }: { id: string, onClose: () => vo
                 <p className="text-sm font-semibold text-zinc-900 dark:text-white leading-relaxed">{expense.name}</p>
               </div>
 
+              {expense.paymentMethod && (
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{t('paymentMethod') || 'Payment Method'}</p>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                    {expense.paymentMethod === 'cash' ? (t('cash') || 'Cash') : (t('bankTransfer') || 'Bank Transfer')}
+                  </p>
+                </div>
+              )}
+
+              {expense.notes && (
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{t('notes') || 'Notes'}</p>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-white leading-relaxed whitespace-pre-wrap">{expense.notes}</p>
+                </div>
+              )}
+
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">{t('date')}</p>
@@ -592,6 +659,8 @@ function ExpenseForm({ editId, onSave, onCancel }: { editId: string | null, onSa
   const [category, setCategory] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [currency, setCurrency] = useState(globalCurrency);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bankTransfer'>('cash');
+  const [notes, setNotes] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<any[]>([]);
   
@@ -631,6 +700,8 @@ function ExpenseForm({ editId, onSave, onCancel }: { editId: string | null, onSa
             setCategory(data.category || '');
             setDate(data.date || new Date().toISOString().split('T')[0]);
             if (data.currency) setCurrency(data.currency);
+            if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
+            setNotes(data.notes || '');
             setAttachmentUrl(data.attachmentUrl || null);
           }
         } catch (error) {
@@ -664,6 +735,8 @@ function ExpenseForm({ editId, onSave, onCancel }: { editId: string | null, onSa
         category,
         date,
         currency,
+        paymentMethod,
+        notes,
         attachmentUrl: attachmentUrl || null,
         updatedAt: serverTimestamp(),
       };
@@ -732,32 +805,34 @@ function ExpenseForm({ editId, onSave, onCancel }: { editId: string | null, onSa
             />
           </div>
 
-          <div>
-            <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mb-1 block">{t('amount')}</label>
-            <input 
-              type="number" 
-              value={amount} 
-              onChange={e => setAmount(e.target.value)}
-              className="w-full bg-black/5 dark:bg-black/20 border border-zinc-300 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors"
-              placeholder={`${currency} 0.00`}
-            />
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mb-1 block">{t('amount')}</label>
+              <input 
+                type="number" 
+                value={amount} 
+                onChange={e => setAmount(e.target.value)}
+                className="w-full bg-black/5 dark:bg-black/20 border border-zinc-300 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                placeholder={`${currency} 0.00`}
+              />
+            </div>
+
+            <div className="w-[124px] relative z-25">
+              <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mb-1 block">{t('currency')}</label>
+              <Dropdown
+                value={currency}
+                onChange={(val) => setCurrency(val as any)}
+                options={[
+                  { label: 'USD ($)', value: 'USD' },
+                  { label: 'LAK (₭)', value: 'LAK' },
+                  { label: 'THB (฿)', value: 'THB' },
+                ]}
+                buttonClassName="w-full bg-black/5 dark:bg-black/20 border-zinc-300 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-zinc-900 dark:text-white focus:ring-indigo-500"
+              />
+            </div>
           </div>
 
           <div className="relative z-20">
-            <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mb-1 block">{t('currency')}</label>
-            <Dropdown
-              value={currency}
-              onChange={(val) => setCurrency(val as any)}
-              options={[
-                { label: 'USD ($)', value: 'USD' },
-                { label: 'LAK (₭)', value: 'LAK' },
-                { label: 'THB (฿)', value: 'THB' },
-              ]}
-              buttonClassName="w-full bg-black/5 dark:bg-black/20 border-zinc-300 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:ring-indigo-500 font-normal"
-            />
-          </div>
-
-          <div className="relative z-10">
             <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mb-1 block">{t('category')}</label>
             <Dropdown
               value={category}
@@ -772,6 +847,19 @@ function ExpenseForm({ editId, onSave, onCancel }: { editId: string | null, onSa
             />
           </div>
 
+          <div className="relative z-10">
+            <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mb-1 block">{t('paymentMethod')}</label>
+            <Dropdown
+              value={paymentMethod}
+              onChange={(val) => setPaymentMethod(val as any)}
+              options={[
+                { label: t('cash') || 'Cash', value: 'cash' },
+                { label: t('bankTransfer') || 'Bank Transfer', value: 'bankTransfer' },
+              ]}
+              buttonClassName="w-full bg-black/5 dark:bg-black/20 border-zinc-300 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:ring-indigo-500 font-normal"
+            />
+          </div>
+
           <div>
             <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mb-1 block">{t('date')}</label>
             <input 
@@ -779,6 +867,17 @@ function ExpenseForm({ editId, onSave, onCancel }: { editId: string | null, onSa
               value={date} 
               onChange={e => setDate(e.target.value)}
               className="w-full bg-black/5 dark:bg-black/20 border border-zinc-300 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mb-1 block">{t('notes')}</label>
+            <textarea 
+              value={notes} 
+              onChange={e => setNotes(e.target.value)}
+              className="w-full bg-black/5 dark:bg-black/20 border border-zinc-300 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
+              placeholder={t('notesPlaceholder') || 'Add details...'}
+              rows={3}
             />
           </div>
 

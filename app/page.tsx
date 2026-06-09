@@ -6,7 +6,7 @@ import BottomNav from '@/components/BottomNav';
 import { useAuth } from '@/components/AuthProvider';
 import { useGroup } from '@/components/GroupProvider';
 import { useLanguage } from '@/components/LanguageProvider';
-import { useCurrency } from '@/components/CurrencyProvider';
+import { useCurrency, Currency } from '@/components/CurrencyProvider';
 import { useEffect, useState, useMemo } from 'react';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
@@ -44,7 +44,7 @@ export default function Dashboard() {
   const { user, loading, signIn, signOut } = useAuth();
   const { language, t } = useLanguage();
   const { currency, setCurrency, formatAmount, convertAmount, rates } = useCurrency();
-  const { activeGroupId } = useGroup();
+  const { activeGroupId, activeGroup } = useGroup();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [stats, setStats] = useState({ income: 0, expenses: 0, profit: 0, invoicesCount: 0 });
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
@@ -63,7 +63,7 @@ export default function Dashboard() {
     if (user) {
       fetchDaData();
     }
-  }, [user, activeGroupId, currency, rates]);
+  }, [user, activeGroupId, activeGroup, currency, rates]);
 
   const fetchDaData = async () => {
     try {
@@ -101,12 +101,12 @@ export default function Dashboard() {
         return;
       }
       incomeSnapshot.forEach(doc => { 
-        const data = doc.data();
-        const amount = data.amount || 0;
-        const recordCurrency = data.currency || 'USD';
-        const convertedAmount = convertAmount(amount, recordCurrency, currency);
-        totalIncome += convertedAmount; 
-        rawIncomes.push({ ...data, amount: convertedAmount });
+         const data = doc.data();
+         const amount = data.amount || 0;
+         const recordCurrency = data.currency || 'USD';
+         const convertedAmount = convertAmount(amount, recordCurrency, currency);
+         totalIncome += convertedAmount; 
+         rawIncomes.push({ ...data, amount: convertedAmount });
       });
 
       const expenseQuery = query(collection(db, 'expenses'), where('groupId', '==', groupIdToUse));
@@ -118,18 +118,25 @@ export default function Dashboard() {
         return;
       }
       expenseSnapshot.forEach(doc => { 
-        const data = doc.data();
-        const amount = data.amount || 0;
-        const recordCurrency = data.currency || 'USD';
-        const convertedAmount = convertAmount(amount, recordCurrency, currency);
-        totalExpenses += convertedAmount; 
-        rawExpenses.push({ ...data, amount: convertedAmount });
+         const data = doc.data();
+         const amount = data.amount || 0;
+         const recordCurrency = data.currency || 'USD';
+         const convertedAmount = convertAmount(amount, recordCurrency, currency);
+         totalExpenses += convertedAmount; 
+         rawExpenses.push({ ...data, amount: convertedAmount });
       });
 
+      let startBalConverted = 0;
+      if (activeGroup && activeGroup.startingBalance) {
+        const startBal = activeGroup.startingBalance || 0;
+        const startCurr = activeGroup.startingBalanceCurrency || 'USD';
+        startBalConverted = convertAmount(startBal, startCurr as Currency, currency);
+      }
+
       setStats({
-        income: totalIncome,
+        income: totalIncome + startBalConverted,
         expenses: totalExpenses,
-        profit: totalIncome - totalExpenses,
+        profit: (totalIncome + startBalConverted) - totalExpenses,
         invoicesCount: invoicesSnapshot.size
       });
 
