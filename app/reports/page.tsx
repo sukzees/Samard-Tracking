@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, BarChart3, TrendingUp, TrendingDown, PieChart, Calendar, Loader2, Download, Sparkles } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, TrendingDown, PieChart, Calendar, Loader2, Download, Sparkles, Banknote, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -48,7 +48,7 @@ export default function ReportsPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { activeGroupId } = useGroup();
+  const { activeGroupId, activeGroup } = useGroup();
   const { currency, formatAmount, convertAmount, rates } = useCurrency();
   
   const [loading, setLoading] = useState(true);
@@ -145,6 +145,45 @@ export default function ReportsPage() {
       margin: totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0
     };
   }, [filteredData]);
+
+  const paymentStats = useMemo(() => {
+    let cashIncome = 0;
+    let cashExpense = 0;
+    let bankIncome = 0;
+    let bankExpense = 0;
+
+    filteredData.income.forEach(item => {
+      const payMethod = item.paymentMethod || 'cash';
+      if (payMethod === 'bankTransfer') {
+        bankIncome += item.amount || 0;
+      } else {
+        cashIncome += item.amount || 0;
+      }
+    });
+
+    filteredData.expenses.forEach(item => {
+      const payMethod = item.paymentMethod || 'cash';
+      if (payMethod === 'bankTransfer') {
+        bankExpense += item.amount || 0;
+      } else {
+        cashExpense += item.amount || 0;
+      }
+    });
+
+    let startBalConverted = 0;
+    if (activeGroup && activeGroup.startingBalance) {
+      const startBal = activeGroup.startingBalance || 0;
+      const startCurr = activeGroup.startingBalanceCurrency || 'USD';
+      startBalConverted = convertAmount(startBal, startCurr as any, currency);
+    }
+
+    return {
+      cashIncome: cashIncome + startBalConverted,
+      cashExpense,
+      bankIncome,
+      bankExpense
+    };
+  }, [filteredData, activeGroup, currency, convertAmount]);
 
   const monthlyChartData = useMemo(() => {
     const monthMap: Record<string, { name: string, income: number, expenses: number }> = {};
@@ -279,6 +318,93 @@ export default function ReportsPage() {
           />
         </motion.div>
 
+        {/* Payment Methods Breakdown */}
+        <motion.div variants={itemVariants} className="space-y-4">
+          <div className="flex justify-between items-center px-1">
+            <h2 className="text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+              {t('paymentMethod') || 'Payment Method'}
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cash Card */}
+            <div className="bg-white dark:bg-[#0C0C0E] p-6 rounded-[32px] border border-zinc-200 dark:border-white/5 shadow-sm overflow-hidden relative group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                <Banknote size={48} className="text-emerald-500" />
+              </div>
+              <div className="text-zinc-500 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                {t('cash') || 'Cash'}
+              </div>
+              <div className="flex flex-col mt-3 relative z-10">
+                <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-0.5">Net Balance</div>
+                <div className={`text-2xl font-black tracking-tighter ${(paymentStats.cashIncome - paymentStats.cashExpense) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {formatAmount(paymentStats.cashIncome - paymentStats.cashExpense)}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-zinc-100 dark:border-white/5">
+                  <div>
+                    <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <TrendingUp size={10} className="text-emerald-500" />
+                      {t('income') || 'Income'}
+                    </div>
+                    <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatAmount(paymentStats.cashIncome)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <TrendingDown size={10} className="text-rose-500" />
+                      {t('expense') || 'Expense'}
+                    </div>
+                    <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatAmount(paymentStats.cashExpense)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bank Transfer Card */}
+            <div className="bg-white dark:bg-[#0C0C0E] p-6 rounded-[32px] border border-zinc-200 dark:border-white/5 shadow-sm overflow-hidden relative group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                <CreditCard size={48} className="text-indigo-500" />
+              </div>
+              <div className="text-zinc-500 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                {t('bankTransfer') || 'Bank Transfer'}
+              </div>
+              <div className="flex flex-col mt-3 relative z-10">
+                <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-0.5">Net Balance</div>
+                <div className={`text-2xl font-black tracking-tighter ${(paymentStats.bankIncome - paymentStats.bankExpense) >= 0 ? 'text-indigo-500' : 'text-rose-500'}`}>
+                  {formatAmount(paymentStats.bankIncome - paymentStats.bankExpense)}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-zinc-100 dark:border-white/5">
+                  <div>
+                    <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <TrendingUp size={10} className="text-indigo-500" />
+                      {t('income') || 'Income'}
+                    </div>
+                    <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatAmount(paymentStats.bankIncome)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <TrendingDown size={10} className="text-rose-500" />
+                      {t('expense') || 'Expense'}
+                    </div>
+                    <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatAmount(paymentStats.bankExpense)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Main Chart */}
         <motion.div variants={itemVariants} className="bg-white dark:bg-[#0C0C0E] p-8 rounded-[40px] shadow-sm border border-zinc-200 dark:border-white/5 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700 pointer-events-none">
@@ -287,7 +413,7 @@ export default function ReportsPage() {
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 relative z-10">
             <div>
-              <h2 className="text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1">{t('incomeVsExpenses')}</h2>
+              <h2 className="text-[11px] font-black text-zinc-400 dark:text-white uppercase tracking-[0.2em] mb-1">{t('incomeVsExpenses')}</h2>
               <div className="text-xl font-black text-zinc-900 dark:text-white tracking-tight uppercase">Cash Flow Analysis</div>
             </div>
             <div className="flex gap-6">
@@ -320,13 +446,13 @@ export default function ReportsPage() {
                    dataKey="name" 
                    axisLine={false} 
                    tickLine={false} 
-                   tick={{ fontSize: 9, fill: 'currentColor', className: 'text-zinc-400 font-black uppercase' }} 
+                   tick={{ fontSize: 9, fill: 'currentColor', className: 'text-zinc-500 dark:text-zinc-100 font-semibold uppercase' }} 
                    dy={15}
                 />
                 <YAxis 
                    axisLine={false} 
                    tickLine={false} 
-                   tick={{ fontSize: 9, fill: 'currentColor', className: 'text-zinc-400 font-black' }} 
+                   tick={{ fontSize: 9, fill: 'currentColor', className: 'text-zinc-500 dark:text-zinc-100 font-semibold' }} 
                    tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(1)}k` : value}
                 />
                 <Tooltip 

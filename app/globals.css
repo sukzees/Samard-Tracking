@@ -22,6 +22,15 @@ body {
   /* Let Tailwind handle colors based on html class */
 }
 
+/* Force Recharts axis/tick labels to be readable in Light/Dark modes */
+.recharts-text {
+  fill: #52525b !important;
+  font-family: inherit;
+}
+.dark .recharts-text {
+  fill: #f4f4f5 !important;
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -32,3 +41,4 @@ body {
     transform: translateY(0);
   }
 }
+

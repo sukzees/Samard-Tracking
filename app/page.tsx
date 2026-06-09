@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, Bell, TrendingUp, TrendingDown, FileText, FilePlus, ReceiptText, Wallet, Users, Package, BarChart2, Clock, MoreHorizontal, LogOut, Loader2, Eye, LayoutGrid, Bookmark, Sparkles, Kanban } from 'lucide-react';
+import { Menu, Bell, TrendingUp, TrendingDown, FileText, FilePlus, ReceiptText, Wallet, Users, Package, BarChart2, Clock, MoreHorizontal, LogOut, Loader2, Eye, LayoutGrid, Bookmark, Sparkles, Kanban, Banknote, CreditCard, AlertCircle, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/BottomNav';
 import { useAuth } from '@/components/AuthProvider';
@@ -41,12 +41,18 @@ const itemVariants = {
 };
 
 export default function Dashboard() {
-  const { user, loading, signIn, signOut } = useAuth();
+  const { user, loading, signIn, signOut, error, signInAnonymously } = useAuth();
   const { language, t } = useLanguage();
   const { currency, setCurrency, formatAmount, convertAmount, rates } = useCurrency();
   const { activeGroupId, activeGroup } = useGroup();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [stats, setStats] = useState({ income: 0, expenses: 0, profit: 0, invoicesCount: 0 });
+  const [paymentStats, setPaymentStats] = useState({
+    cashIncome: 0,
+    cashExpense: 0,
+    bankIncome: 0,
+    bankExpense: 0
+  });
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
   const [incomeCategoryData, setIncomeCategoryData] = useState<any[]>([]);
@@ -88,6 +94,10 @@ export default function Dashboard() {
 
       let totalIncome = 0;
       let totalExpenses = 0;
+      let cashIncome = 0;
+      let cashExpense = 0;
+      let bankIncome = 0;
+      let bankExpense = 0;
       
       const rawIncomes: any[] = [];
       const rawExpenses: any[] = [];
@@ -107,6 +117,13 @@ export default function Dashboard() {
          const convertedAmount = convertAmount(amount, recordCurrency, currency);
          totalIncome += convertedAmount; 
          rawIncomes.push({ ...data, amount: convertedAmount });
+
+         const payMethod = data.paymentMethod || 'cash';
+         if (payMethod === 'bankTransfer') {
+           bankIncome += convertedAmount;
+         } else {
+           cashIncome += convertedAmount;
+         }
       });
 
       const expenseQuery = query(collection(db, 'expenses'), where('groupId', '==', groupIdToUse));
@@ -124,6 +141,13 @@ export default function Dashboard() {
          const convertedAmount = convertAmount(amount, recordCurrency, currency);
          totalExpenses += convertedAmount; 
          rawExpenses.push({ ...data, amount: convertedAmount });
+
+         const payMethod = data.paymentMethod || 'cash';
+         if (payMethod === 'bankTransfer') {
+           bankExpense += convertedAmount;
+         } else {
+           cashExpense += convertedAmount;
+         }
       });
 
       let startBalConverted = 0;
@@ -138,6 +162,13 @@ export default function Dashboard() {
         expenses: totalExpenses,
         profit: (totalIncome + startBalConverted) - totalExpenses,
         invoicesCount: invoicesSnapshot.size
+      });
+
+      setPaymentStats({
+        cashIncome: cashIncome + startBalConverted,
+        cashExpense: cashExpense,
+        bankIncome: bankIncome,
+        bankExpense: bankExpense
       });
 
       // Calculate Monthly Data
@@ -217,17 +248,68 @@ export default function Dashboard() {
   if (!user) {
     return (
       <main className="min-h-screen bg-slate-50 dark:bg-[#09090B] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-6">
-          <Wallet size={32} className="text-indigo-500" />
+        <div className="max-w-md w-full bg-white dark:bg-[#0C0C0E] border border-zinc-200 dark:border-white/5 rounded-[40px] p-8 shadow-md">
+          <div className="w-16 h-16 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+            <Wallet size={32} className="text-indigo-500" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-white mb-2 tracking-tight uppercase">{t('appName')}</h1>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-8 mx-4 text-sm">{t('appTagline')}</p>
+
+          {error && (
+            <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 text-left">
+              <div className="flex gap-2.5 items-start text-amber-800 dark:text-amber-300">
+                <AlertCircle className="shrink-0 mt-0.5" size={16} />
+                <div className="text-xs space-y-2">
+                  <p className="font-bold uppercase tracking-wider">Sign-In Notice</p>
+                  {error === 'network-failed' ? (
+                    <p className="text-zinc-600 dark:text-zinc-300 leading-normal">
+                      Google Sign-In was blocked. In sandboxed preview frames, browser security prevents external popup cookies.
+                    </p>
+                  ) : (
+                    <p className="text-zinc-600 dark:text-zinc-300 leading-normal">
+                      Authentication blocked: {error}
+                    </p>
+                  )}
+                  <div className="pt-1.5 flex flex-col sm:flex-row gap-2">
+                    <a
+                      href=""
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.open(window.location.href, '_blank');
+                      }}
+                      className="inline-flex items-center gap-1 font-bold text-amber-700 dark:text-amber-400 hover:underline"
+                    >
+                      Open in New Tab <ExternalLink size={12} />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={signIn}
+              type="button"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm"
+            >
+              {t('signInWithGoogle')}
+            </button>
+            
+            <button
+              onClick={signInAnonymously}
+              type="button"
+              className="w-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-bold uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all flex items-center justify-center gap-2 border border-zinc-200 dark:border-white/5"
+            >
+              <User size={14} className="text-zinc-400" />
+              Demo / Guest Access
+            </button>
+          </div>
+          
+          <p className="text-zinc-400 dark:text-zinc-500 text-[10px] mt-6 leading-relaxed">
+            Choose Google Auth to save data across devices, or Demo mode for quick sandbox evaluation inside this preview frame.
+          </p>
         </div>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2 tracking-tight">{t('appName')}</h1>
-        <p className="text-zinc-600 dark:text-zinc-400 mb-8 mx-4">{t('appTagline')}</p>
-        <button
-          onClick={signIn}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3.5 px-8 rounded-full transition-colors flex items-center gap-2"
-        >
-          {t('signInWithGoogle')}
-        </button>
       </main>
     );
   }
@@ -350,6 +432,93 @@ export default function Dashboard() {
           </div>
         </motion.section>
 
+        {/* Payment Methods Breakdown */}
+        <motion.section variants={itemVariants}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-tighter flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+              {t('paymentMethod') || 'Payment Method'}
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cash Card */}
+            <div className="bg-white dark:bg-[#141417] p-5 rounded-[24px] border border-zinc-200 dark:border-white/5 shadow-sm overflow-hidden relative group">
+              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                <Banknote size={42} className="text-emerald-500" />
+              </div>
+              <div className="text-zinc-500 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                {t('cash') || 'Cash'}
+              </div>
+              <div className="flex flex-col mt-3 relative z-10">
+                <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-0.5">{t('netProfit') || 'Net Balance'}</div>
+                <div className={`text-xl font-black tracking-tighter ${(paymentStats.cashIncome - paymentStats.cashExpense) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {formatAmount(paymentStats.cashIncome - paymentStats.cashExpense)}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-zinc-100 dark:border-white/5">
+                  <div>
+                    <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <TrendingUp size={10} className="text-emerald-500" />
+                      {t('income') || 'Income'}
+                    </div>
+                    <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatAmount(paymentStats.cashIncome)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <TrendingDown size={10} className="text-rose-500" />
+                      {t('expense') || 'Expense'}
+                    </div>
+                    <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatAmount(paymentStats.cashExpense)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bank Transfer Card */}
+            <div className="bg-white dark:bg-[#141417] p-5 rounded-[24px] border border-zinc-200 dark:border-white/5 shadow-sm overflow-hidden relative group">
+              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                <CreditCard size={42} className="text-indigo-500" />
+              </div>
+              <div className="text-zinc-500 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest relative z-10 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                {t('bankTransfer') || 'Bank Transfer'}
+              </div>
+              <div className="flex flex-col mt-3 relative z-10">
+                <div className="text-xs text-zinc-400 font-bold uppercase tracking-wider mb-0.5">{t('netProfit') || 'Net Balance'}</div>
+                <div className={`text-xl font-black tracking-tighter ${(paymentStats.bankIncome - paymentStats.bankExpense) >= 0 ? 'text-indigo-500' : 'text-rose-500'}`}>
+                  {formatAmount(paymentStats.bankIncome - paymentStats.bankExpense)}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-zinc-100 dark:border-white/5">
+                  <div>
+                    <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <TrendingUp size={10} className="text-indigo-500" />
+                      {t('income') || 'Income'}
+                    </div>
+                    <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatAmount(paymentStats.bankIncome)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <TrendingDown size={10} className="text-rose-500" />
+                      {t('expense') || 'Expense'}
+                    </div>
+                    <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                      {formatAmount(paymentStats.bankExpense)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+
         {/* Quick Actions */}
         <motion.section variants={itemVariants}>
           <div className="flex justify-between items-end mb-5">
@@ -419,22 +588,24 @@ export default function Dashboard() {
                         <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="var(--tw-colors-zinc-200)" opacity={0.1} />
+                    <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" opacity={0.1} />
                     <XAxis 
                       dataKey="name" 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 'bold', fill: 'var(--tw-colors-zinc-400)' }} 
+                      tick={{ fontSize: 10, fontWeight: 'bold', fill: 'currentColor' }} 
+                      className="text-zinc-500 dark:text-white"
                       dy={10} 
                     />
                     <YAxis 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 'bold', fill: 'var(--tw-colors-zinc-400)' }} 
+                      tick={{ fontSize: 10, fontWeight: 'bold', fill: 'currentColor' }} 
+                      className="text-zinc-500 dark:text-white"
                       tickFormatter={(value) => formatAmount(value).replace('.00', '')} 
                     />
                     <Tooltip 
-                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', backgroundColor: 'var(--tw-colors-zinc-900)', color: 'var(--tw-colors-white)' }}
+                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', backgroundColor: '#18181b', color: '#ffffff' }}
                       itemStyle={{ fontWeight: 'black', fontSize: '12px' }}
                       labelStyle={{ marginBottom: '4px', opacity: 0.5, fontSize: '10px', fontWeight: 'bold' }}
                     />
@@ -491,7 +662,7 @@ export default function Dashboard() {
                               ))}
                             </Pie>
                             <Tooltip 
-                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', backgroundColor: 'var(--tw-colors-zinc-900)', color: 'var(--tw-colors-white)' }}
+                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', backgroundColor: '#18181b', color: '#ffffff' }}
                               itemStyle={{ fontWeight: 'black', fontSize: '12px' }}
                               formatter={(value: any) => formatAmount(value)}
                             />
